@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SI ↔ IMPERIAL — Unit Converter</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap');
+
+  :root {
+    --bg:       #080c10;
+    --panel:    #0d1520;
+    --panel2:   #111d2e;
+    --border:   #1e3a5f;
+    --border2:  #0e2340;
+    --accent:   #00c8ff;
+    --accent2:  #0076a8;
+    --amber:    #f0a500;
+    --green:    #00e676;
+    --red:      #ff3d3d;
+    --text:     #c8dff0;
+    --muted:    #4a6a8a;
+    --formula:  #1a3a5c;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 16px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ─── SCANLINE OVERLAY ─── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,.07) 2px,
+      rgba(0,0,0,.07) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* ─── GRID BG ─── */
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,200,255,.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,200,255,.025) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ─── HEADER ─── */
+  header {
+    position: relative;
+    z-index: 10;
+    padding: 24px 32px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    background: linear-gradient(180deg, rgba(0,40,80,.6) 0%, transparent 100%);
+  }
+
+  .logo-mark {
+    width: 52px; height: 52px;
+    border: 2px solid var(--accent);
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .logo-mark::before {
+    content: '';
+    position: absolute; inset: 4px;
+    border: 1px solid var(--accent2);
+    border-radius: 2px;
+  }
+  .logo-mark svg { width: 28px; height: 28px; fill: var(--accent); }
+
+  .header-text h1 {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(14px, 2.5vw, 22px);
+    font-weight: 900;
+    letter-spacing: .15em;
+    color: var(--accent);
+    text-shadow: 0 0 20px rgba(0,200,255,.4);
+  }
+  .header-text p {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    margin-top: 2px;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  .header-badges {
+    margin-left: auto;
+    display: flex; gap: 10px; align-items: center;
+    flex-wrap: wrap;
+  }
+  .badge {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    padding: 3px 8px;
+    border: 1px solid;
+    border-radius: 2px;
+    letter-spacing: .1em;
+  }
+  .badge-green  { color: var(--green);  border-color: var(--green);  background: rgba(0,230,118,.07); }
+  .badge-amber  { color: var(--amber);  border-color: var(--amber);  background: rgba(240,165,0,.07); }
+  .badge-accent { color: var(--accent); border-color: var(--accent); background: rgba(0,200,255,.07); }
+
+  /* ─── CATEGORY TABS ─── */
+  .tab-bar {
+    position: relative; z-index: 10;
+    display: flex;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 0 24px;
+    border-bottom: 1px solid var(--border2);
+    background: var(--panel);
+    gap: 2px;
+  }
+  .tab-bar::-webkit-scrollbar { display: none; }
+
+  .tab {
+    flex-shrink: 0;
+    padding: 14px 18px;
+    font-family: 'Orbitron', monospace;
+    font-size: 10px;
+    letter-spacing: .12em;
+    color: var(--muted);
+    cursor: pointer;
+    border: none; background: none;
+    border-bottom: 2px solid transparent;
+    transition: all .2s;
+    display: flex; align-items: center; gap: 7px;
+    position: relative;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    background: rgba(0,200,255,.05);
+  }
+  .tab .tab-icon { font-size: 14px; }
+
+  /* ─── MAIN LAYOUT ─── */
+  main {
+    position: relative; z-index: 10;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 32px 24px 60px;
+  }
+
+  /* ─── CONVERTER PANEL ─── */
+  .converter { display: none; }
+  .converter.active { display: block; animation: fadeIn .3s ease; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  .converter-header {
+    display: flex; align-items: baseline; gap: 14px;
+    margin-bottom: 28px;
+  }
+  .converter-header h2 {
+    font-family: 'Orbitron', monospace;
+    font-size: 18px;
+    color: var(--accent);
+    font-weight: 700;
+    letter-spacing: .08em;
+  }
+  .converter-header span {
+    font-size: 11px; color: var(--muted);
+    letter-spacing: .15em;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  /* ─── DIRECTION TOGGLE ─── */
+  .direction-row {
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 28px;
+  }
+  .dir-label {
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    letter-spacing: .1em;
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    flex: 1; text-align: center;
+    transition: all .2s;
+    cursor: pointer;
+    user-select: none;
+  }
+  .dir-label.active-si  { color: var(--accent); border-color: var(--accent); background: rgba(0,200,255,.08); }
+  .dir-label.active-imp { color: var(--amber);  border-color: var(--amber);  background: rgba(240,165,0,.08); }
+  .dir-label:not(.active-si):not(.active-imp) { color: var(--muted); }
+
+  .swap-btn {
+    width: 40px; height: 40px;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--accent); font-size: 18px;
+    transition: all .2s; flex-shrink: 0;
+  }
+  .swap-btn:hover { background: rgba(0,200,255,.1); border-color: var(--accent); }
+  .swap-btn:active { transform: rotate(180deg); }
+
+  /* ─── UNIT SELECTOR ─── */
+  .unit-selector {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 16px; margin-bottom: 28px;
+  }
+  .field-group label {
+    display: block;
+    font-size: 10px; letter-spacing: .18em;
+    color: var(--muted); text-transform: uppercase;
+    margin-bottom: 6px;
+    font-family: 'Share Tech Mono', monospace;
+  }
+  .field-group select {
+    width: 100%;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    padding: 10px 12px;
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%234a6a8a'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    transition: border-color .2s;
+  }
+  .field-group select:focus { border-color: var(--accent); }
+
+  /* ─── INPUT / OUTPUT ─── */
+  .io-grid {
+    display: grid; grid-template-columns: 1fr auto 1fr;
+    align-items: end; gap: 14px;
+    margin-bottom: 24px;
+  }
+  .io-field label {
+    display: block;
+    font-size: 10px; letter-spacing: .18em;
+    color: var(--muted); margin-bottom: 6px;
+    font-family: 'Share Tech Mono', monospace;
+  }
+  .io-field .unit-badge {
+    display: inline-block;
+    font-size: 9px; padding: 1px 6px;
+    border: 1px solid var(--muted);
+    border-radius: 2px; color: var(--muted);
+    margin-left: 6px; letter-spacing: .05em;
+    vertical-align: middle;
+  }
+
+  .input-wrap { position: relative; }
+  .input-wrap input {
+    width: 100%;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    color: var(--accent);
+    font-family: 'Orbitron', monospace;
+    font-size: 22px;
+    padding: 14px 14px;
+    border-radius: 3px;
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .input-wrap input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(0,200,255,.12), inset 0 0 12px rgba(0,200,255,.04);
+  }
+  .input-wrap input::placeholder { color: var(--muted); font-size: 16px; }
+
+  .output-wrap {
+    background: var(--panel2);
+    border: 1px solid var(--border2);
+    border-radius: 3px;
+    padding: 14px;
+    min-height: 58px;
+    position: relative;
+    overflow: hidden;
+  }
+  .output-wrap::before {
+    content: '';
+    position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: linear-gradient(180deg, var(--accent), var(--accent2));
+  }
+  .output-value {
+    font-family: 'Orbitron', monospace;
+    font-size: 22px;
+    color: var(--amber);
+    text-shadow: 0 0 12px rgba(240,165,0,.3);
+    min-height: 30px;
+  }
+  .output-value.zero { color: var(--muted); }
+
+  .arrow-center {
+    font-size: 22px; color: var(--accent2);
+    padding-bottom: 14px;
+    text-align: center;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  /* ─── FORMULA BOX ─── */
+  .formula-box {
+    background: var(--formula);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent2);
+    border-radius: 3px;
+    padding: 14px 18px;
+    margin-bottom: 24px;
+    min-height: 52px;
+  }
+  .formula-box .formula-label {
+    font-size: 9px; letter-spacing: .2em;
+    color: var(--muted); margin-bottom: 6px;
+    font-family: 'Share Tech Mono', monospace;
+    text-transform: uppercase;
+  }
+  .formula-box .formula-text {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    color: var(--green);
+    line-height: 1.6;
+  }
+
+  /* ─── QUICK REFS ─── */
+  .quickref-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 10px; letter-spacing: .18em;
+    color: var(--muted); margin-bottom: 12px;
+    text-transform: uppercase;
+  }
+  .quickref-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 8px;
+  }
+  .qr-card {
+    background: var(--panel);
+    border: 1px solid var(--border2);
+    border-radius: 3px;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: all .15s;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .qr-card:hover {
+    border-color: var(--accent2);
+    background: rgba(0,200,255,.05);
+  }
+  .qr-from { font-family: 'Share Tech Mono', monospace; font-size: 12px; color: var(--accent); }
+  .qr-arrow { color: var(--muted); font-size: 11px; margin: 0 8px; }
+  .qr-to   { font-family: 'Share Tech Mono', monospace; font-size: 12px; color: var(--amber); }
+
+  /* ─── FOOTER ─── */
+  footer {
+    position: relative; z-index: 10;
+    text-align: center;
+    padding: 20px;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: .15em;
+    font-family: 'Share Tech Mono', monospace;
+    border-top: 1px solid var(--border2);
+  }
+
+  /* ─── RESPONSIVE ─── */
+  @media (max-width: 600px) {
+    .io-grid { grid-template-columns: 1fr; }
+    .arrow-center { transform: rotate(90deg); padding: 0; }
+    .unit-selector { grid-template-columns: 1fr; }
+    header { padding: 16px; flex-wrap: wrap; }
+    .header-badges { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo-mark">
+    <svg viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>
+  </div>
+  <div class="header-text">
+    <h1>SI ↔ IMPERIAL CONVERTER</h1>
+    <p>Aerospace Metrology Reference System · v2.6.1</p>
+  </div>
+  <div class="header-badges">
+    <span class="badge badge-green">● ONLINE</span>
+    <span class="badge badge-amber">OFFLINE-READY</span>
+    <span class="badge badge-accent">8 CATEGORIES</span>
+  </div>
+</header>
+
+<!-- TABS -->
+<div class="tab-bar" id="tabBar"></div>
+
+<!-- MAIN -->
+<main>
+  <div id="converterContainer"></div>
+</main>
+
+<footer>SI ↔ IMPERIAL UNIT CONVERTER · STANDALONE HTML · NO EXTERNAL DEPENDENCIES</footer>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  DATA
+// ═══════════════════════════════════════════════════════════
+const CATEGORIES = [
+  {
+    id: 'length',
+    label: 'LUNGHEZZA',
+    icon: '↔',
+    siLabel: 'SI (metrico)',
+    impLabel: 'Imperiale',
+    si: [
+      { id: 'mm',  name: 'Millimetri (mm)',  factor: 0.001 },
+      { id: 'cm',  name: 'Centimetri (cm)',  factor: 0.01  },
+      { id: 'm',   name: 'Metri (m)',         factor: 1     },
+      { id: 'km',  name: 'Chilometri (km)',  factor: 1000  },
+      { id: 'nm',  name: 'Miglia nautiche (NM)', factor: 1852 },
+    ],
+    imp: [
+      { id: 'in',  name: 'Pollici (in)',    factor: 0.0254   },
+      { id: 'ft',  name: 'Piedi (ft)',      factor: 0.3048   },
+      { id: 'yd',  name: 'Iarde (yd)',      factor: 0.9144   },
+      { id: 'mi',  name: 'Miglia (mi)',     factor: 1609.344 },
+      { id: 'fur', name: 'Furloni (fur)',   factor: 201.168  },
+    ],
+    formula: (v, fromUnit, toUnit, siToImp) => {
+      const k = fromUnit.factor / toUnit.factor;
+      const r = v * k;
+      return {
+        result: r,
+        text: `${v} ${fromUnit.id} × (${fromUnit.factor} m/${fromUnit.id}) ÷ (${toUnit.factor} m/${toUnit.id})\n= ${v} × ${k.toPrecision(6)} = ${r.toPrecision(8)} ${toUnit.id}`
+      };
+    }
+  },
+  {
+    id: 'mass',
+    label: 'MASSA',
+    icon: '⚖',
+    siLabel: 'SI (metrico)',
+    impLabel: 'Imperiale',
+    si: [
+      { id: 'mg',  name: 'Milligrammi (mg)', factor: 1e-6  },
+      { id: 'g',   name: 'Grammi (g)',        factor: 0.001 },
+      { id: 'kg',  name: 'Kilogrammi (kg)',   factor: 1     },
+      { id: 't',   name: 'Tonnellate metriche (t)', factor: 1000 },
+    ],
+    imp: [
+      { id: 'oz',   name: 'Once (oz)',            factor: 0.02834952 },
+      { id: 'lb',   name: 'Libbre (lb)',           factor: 0.45359237 },
+      { id: 'st',   name: 'Stone (st)',            factor: 6.35029318 },
+      { id: 'ton',  name: 'Tonnellate corte (ton)', factor: 907.18474  },
+      { id: 'lton', name: 'Tonnellate lunghe (LT)', factor: 1016.0469  },
+    ],
+    formula: (v, fromUnit, toUnit) => {
+      const k = fromUnit.factor / toUnit.factor;
+      const r = v * k;
+      return {
+        result: r,
+        text: `${v} ${fromUnit.id} × (${fromUnit.factor} kg/${fromUnit.id}) ÷ (${toUnit.factor} kg/${toUnit.id})\n= ${v} × ${k.toPrecision(6)} = ${r.toPrecision(8)} ${toUnit.id}`
+      };
+    }
+  },
+  {
+    id: 'force',
+    label: 'FORZA',
+    icon: 'F',
+    siLabel: 'SI (metrico)',
+    impLabel: 'Imperiale',
+    si: [
+      { id: 'N',   name: 'Newton (N)',       factor: 1      },
+      { id: 'kN',  name: 'Kilonewton (kN)',  factor: 1000   },
+      { id: 'MN',  name: 'Meganewton (MN)',  factor: 1e6    },
+      { id: 'kgf', name: 'Kilogrammi-forza (kgf)', factor: 9.80665 },
+    ],
+    imp: [
+      { id: 'lbf', name: 'Libbre-forza (lbf)',   factor: 4.4482216  },
+      { id: 'ozf', name: 'Once-forza (ozf)',      factor: 0.2780139  },
+      { id: 'kip', name: 'Kip (1000 lbf)',        factor: 4448.2216  },
+      { id: 'tonf',name: 'Tonnellata-forza US',   factor: 8896.443   },
+    ],
+    formula: (v, fromUnit, toUnit) => {
+      const k = fromUnit.factor / toUnit.factor;
+      const r = v * k;
+      return {
+        result: r,
+        text: `${v} ${fromUnit.id} × (${fromUnit.factor} N/${fromUnit.id}) ÷ (${toUnit.factor} N/${toUnit.id})\n= ${v} × ${k.toPrecision(6)} = ${r.toPrecision(8)} ${toUnit.id}`
+      };
+    }
+  },
+  {
+    id: 'pressure',
+    label: 'PRESSIONE',
+    icon: 'P',
+    siLabel: 'SI (metrico)',
+    impLabel: 'Imperiale',
+    si: [
+      { id: 'Pa',   name: 'Pascal (Pa)',           factor: 1       },
+      { id: 'kPa',  name: 'Kilopascal (kPa)',       factor: 1000    },
+      { id: 'MPa',  name: 'Megapascal (MPa)',        factor: 1e6     },
+      { id: 'bar',  name: 'Bar (bar)',               factor: 1e5     },
+      { id: 'mbar', name: 'Millibar (mbar)',         factor: 100     },
+      { id: 'atm',  name: 'Atmosfere (atm)',         factor: 101325  },
+    ],
+    imp: [
+      { id: 'psi',   name: 'PSI (lb/in²)',           factor: 6894.757  },
+      { id: 'psf',   name: 'PSF (lb/ft²)',           factor: 47.88026  },
+      { id: 'inHg',  name: 'Pollici Hg (inHg)',      factor: 3386.389  },
+      { id: 'mmHg',  name: 'mmHg / Torr',            factor: 133.3224  },
+      { id: 'inH2O', name: 'Pollici H₂O (inH₂O)',   factor: 249.0889  },
+    ],
+    formula: (v, fromUnit, toUnit) => {
+      const k = fromUnit.factor / toUnit.factor;
+      const r = v * k;
+      return {
+        result: r,
+        text: `${v} ${fromUnit.id} × (${fromUnit.factor} Pa/${fromUnit.id}) ÷ (${toUnit.factor} Pa/${toUnit.id})\n= ${v} × ${k.toPrecision(6)} = ${r.toPrecision(8)} ${toUnit.id}`
+      };
+    }
+  },
+  {
+    id: 'speed',
+    label: 'VELOCITÀ',
+    icon: '▶',
+    siLabel: 'SI / Metrico',
+    impLabel: 'Imperiale / Nav.',
+    si: [
+      { id: 'm/s',  name: 'Metri/secondo (m/s)',   factor: 1         },
+      { id: 'km/h', name: 'Chilometri/ora (km/h)', factor: 1/3.6     },
+      { id: 'Mach', name: 'Mach (a 15 °C, SL)',    factor: 340.3     },
+    ],
+    imp: [
+      { id: 'mph',  name: 'Miglia/ora (mph)',        factor: 0.44704   },
+      { id: 'kt',   name: 'Nodi (kt)',               factor: 0.514444  },
+      { id: 'fps',  name: 'Piedi/secondo (fps)',     factor: 0.3048    },
+    ],
+    formula: (v, fromUnit, toUnit) => {
+      const k = fromUnit.factor / toUnit.factor;
+      const r = v * k;
+      return {
+        result: r,
+        text: `${v} ${fromUnit.id} × (${fromUnit.factor.toPrecision(5)} m/s per ${fromUnit.id})\n÷ (${toUnit.factor.toPrecision(5)} m/s per ${toUnit.id})\n= ${v} × ${k.toPrecision(6)} = ${r.toPrecision(8)} ${toUnit.id}`
+      };
+    }
+  },
+  {
+    id: 'temp',
+    label: 'TEMPERATURA',
+    icon: '°',
+    siLabel: 'SI / Metrico',
+    impLabel: 'Imperiale',
+    si: [
+      { id: 'C',  name: 'Celsius (°C)'     },
+      { id: 'K',  name: 'Kelvin (K)'        },
+    ],
+    imp: [
+      { id: 'F',  name: 'Fahrenheit (°F)'   },
+      { id: 'Ra', name: 'Rankine (°Ra)'      },
+    ],
+    formula: (v, fromUnit, toUnit) => {
+      // Convert to Celsius first, then to target
+      let celsius;
+      switch(fromUnit.id) {
+        case 'C':  celsius = v; break;
+        case 'K':  celsius = v - 273.15; break;
+        case 'F':  celsius = (v - 32) * 5/9; break;
+        case 'Ra': celsius = (v - 491.67) * 5/9; break;
+      }
+      let result;
+      switch(toUnit.id) {
+        case 'C':  result = celsius; break;
+        case 'K':  result = celsius + 273.15; break;
+        case 'F':  result = celsius * 9/5 + 32; break;
+        case 'Ra': result = (celsius + 273.15) * 9/5; break;
+      }
+      // Build formula string
+      const formulaMap = {
+        'C→K':  `K = °C + 273.15\n= ${v} + 273.15`,
+        'C→F':  `°F = °C × 9/5 + 32\n= ${v} × 1.8 + 32`,
+        'C→Ra': `°Ra = (°C + 273.15) × 9/5\n= (${v} + 273.15) × 1.8`,
+        'K→C':  `°C = K − 273.15\n= ${v} − 273.15`,
+        'K→F':  `°F = (K − 273.15) × 9/5 + 32\n= (${v} − 273.15) × 1.8 + 32`,
+        'K→Ra': `°Ra = K × 9/5\n= ${v} × 1.8`,
+        'F→C':  `°C = (°F − 32) × 5/9\n= (${v} − 32) × 0.5556`,
+        'F→K':  `K = (°F − 32) × 5/9 + 273.15\n= (${v} − 32) × 0.5556 + 273.15`,
+        'F→Ra': `°Ra = °F + 459.67\n= ${v} + 459.67`,
+        'Ra→C': `°C = (°Ra − 491.67) × 5/9\n= (${v} − 491.67) × 0.5556`,
+        'Ra→F': `°F = °Ra − 459.67\n= ${v} − 459.67`,
+        'Ra→K': `K = °Ra × 5/9\n= ${v} × 0.5556`,
+        'C→C':  '— stessa unità —',
+        'K→K':  '— stessa unità —',
+        'F→F':  '— stessa unità —',
+        'Ra→Ra':'— stessa unità —',
+      };
+      const key = `${fromUnit.id}→${toUnit.id}`;
+      return {
+        result,
+        text: (formulaMap[key] || `Converti ${fromUnit.id} → ${toUnit.id}`) + `\n= ${result.toPrecision(8)} ${toUnit.id}`
+      };
+    }
+  },
+  {
+    id: 'power',
+    label: 'POTENZA',
+    icon: 'W',
+    siLabel: 'SI (metrico)',
+    impLabel: 'Imperiale',
+    si: [
+      { id: 'W',   name: 'Watt (W)',          factor: 1      },
+      { id: 'kW',  name: 'Kilowatt (kW)',      factor: 1000   },
+      { id: 'MW',  name: 'Megawatt (MW)',       factor: 1e6    },
+      { id: 'kJ/s',name: 'Kilojoule/s (kJ/s)', factor: 1000   },
+    ],
+    imp: [
+      { id: 'hp',   name: 'Cavalli vapore (hp)',    factor: 745.69987 },
+      { id: 'hp_m', name: 'Cavalli metrici (PS/CV)',factor: 735.49875 },
+      { id: 'BTU/h',name: 'BTU/ora',               factor: 0.29307107},
+      { id: 'ft·lbf/s', name: 'ft·lbf/s',          factor: 1.3558179 },
+    ],
+    formula: (v, fromUnit, toUnit) => {
+      const k = fromUnit.factor / toUnit.factor;
+      const r = v * k;
+      return {
+        result: r,
+        text: `${v} ${fromUnit.id} × (${fromUnit.factor} W/${fromUnit.id}) ÷ (${toUnit.factor} W/${toUnit.id})\n= ${v} × ${k.toPrecision(6)} = ${r.toPrecision(8)} ${toUnit.id}`
+      };
+    }
+  },
+  {
+    id: 'area',
+    label: 'AREA',
+    icon: '□',
+    siLabel: 'SI (metrico)',
+    impLabel: 'Imperiale',
+    si: [
+      { id: 'mm²', name: 'mm²',                   factor: 1e-6    },
+      { id: 'cm²', name: 'cm²',                   factor: 1e-4    },
+      { id: 'm²',  name: 'Metri quadri (m²)',       factor: 1       },
+      { id: 'km²', name: 'Chilometri quadri (km²)', factor: 1e6     },
+      { id: 'ha',  name: 'Ettari (ha)',             factor: 1e4     },
+    ],
+    imp: [
+      { id: 'in²', name: 'Pollici quadri (in²)',   factor: 6.4516e-4 },
+      { id: 'ft²', name: 'Piedi quadri (ft²)',     factor: 0.09290304},
+      { id: 'yd²', name: 'Iarde quadre (yd²)',     factor: 0.83612736},
+      { id: 'ac',  name: 'Acri (ac)',               factor: 4046.8564 },
+      { id: 'mi²', name: 'Miglia quadre (mi²)',    factor: 2589988.1 },
+    ],
+    formula: (v, fromUnit, toUnit) => {
+      const k = fromUnit.factor / toUnit.factor;
+      const r = v * k;
+      return {
+        result: r,
+        text: `${v} ${fromUnit.id} × (${fromUnit.factor} m²/${fromUnit.id}) ÷ (${toUnit.factor} m²/${toUnit.id})\n= ${v} × ${k.toPrecision(6)} = ${r.toPrecision(8)} ${toUnit.id}`
+      };
+    }
+  },
+];
+
+// ═══════════════════════════════════════════════════════════
+//  BUILD UI
+// ═══════════════════════════════════════════════════════════
+const tabBar   = document.getElementById('tabBar');
+const container= document.getElementById('converterContainer');
+
+// State per category
+const state = {};
+
+CATEGORIES.forEach(cat => {
+  state[cat.id] = { dir: 'si2imp', fromIdx: 0, toIdx: 0 };
+});
+
+function buildUI() {
+  // Tabs
+  CATEGORIES.forEach((cat, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'tab' + (i === 0 ? ' active' : '');
+    btn.dataset.cat = cat.id;
+    btn.innerHTML = `<span class="tab-icon">${cat.icon}</span>${cat.label}`;
+    btn.onclick = () => activateTab(cat.id);
+    tabBar.appendChild(btn);
+  });
+
+  // Converters
+  CATEGORIES.forEach((cat, i) => {
+    const div = document.createElement('div');
+    div.className = 'converter' + (i === 0 ? ' active' : '');
+    div.id = 'conv-' + cat.id;
+    div.innerHTML = buildConverter(cat);
+    container.appendChild(div);
+    attachEvents(cat);
+  });
+}
+
+function buildConverter(cat) {
+  const st = state[cat.id];
+  const fromUnits = st.dir === 'si2imp' ? cat.si : cat.imp;
+  const toUnits   = st.dir === 'si2imp' ? cat.imp : cat.si;
+
+  const fromLabel = st.dir === 'si2imp' ? cat.siLabel  : cat.impLabel;
+  const toLabel   = st.dir === 'si2imp' ? cat.impLabel : cat.siLabel;
+
+  return `
+  <div class="converter-header">
+    <h2>${cat.label}</h2>
+    <span>CONVERSIONE BIDIREZIONALE</span>
+  </div>
+
+  <div class="direction-row" id="dirRow-${cat.id}">
+    <div class="dir-label ${st.dir==='si2imp'?'active-si':''}" id="siLabel-${cat.id}" onclick="setDir('${cat.id}','si2imp')">${cat.siLabel}</div>
+    <button class="swap-btn" id="swapBtn-${cat.id}" onclick="swapDir('${cat.id}')">⇆</button>
+    <div class="dir-label ${st.dir==='imp2si'?'active-imp':''}" id="impLabel-${cat.id}" onclick="setDir('${cat.id}','imp2si')">${cat.impLabel}</div>
+  </div>
+
+  <div class="unit-selector">
+    <div class="field-group">
+      <label>UNITÀ ORIGINE · ${fromLabel}</label>
+      <select id="fromSel-${cat.id}">
+        ${fromUnits.map((u,i)=>`<option value="${i}">${u.name}</option>`).join('')}
+      </select>
+    </div>
+    <div class="field-group">
+      <label>UNITÀ DESTINAZIONE · ${toLabel}</label>
+      <select id="toSel-${cat.id}">
+        ${toUnits.map((u,i)=>`<option value="${i}">${u.name}</option>`).join('')}
+      </select>
+    </div>
+  </div>
+
+  <div class="io-grid">
+    <div class="io-field">
+      <label>VALORE DA CONVERTIRE</label>
+      <div class="input-wrap">
+        <input type="number" id="input-${cat.id}" placeholder="0" step="any" autocomplete="off">
+      </div>
+    </div>
+    <div class="arrow-center">→</div>
+    <div class="io-field">
+      <label>RISULTATO</label>
+      <div class="output-wrap">
+        <div class="output-value zero" id="output-${cat.id}">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="formula-box">
+    <div class="formula-label">FORMULA / FATTORE DI CONVERSIONE</div>
+    <div class="formula-text" id="formula-${cat.id}">Inserisci un valore per visualizzare la formula.</div>
+  </div>
+
+  <div class="quickref-title">RIFERIMENTO RAPIDO — valori comuni</div>
+  <div class="quickref-grid" id="qr-${cat.id}"></div>
+  `;
+}
+
+function attachEvents(cat) {
+  const inputEl  = document.getElementById(`input-${cat.id}`);
+  const fromSel  = document.getElementById(`fromSel-${cat.id}`);
+  const toSel    = document.getElementById(`toSel-${cat.id}`);
+
+  inputEl.addEventListener('input', () => compute(cat));
+  fromSel.addEventListener('change', () => { state[cat.id].fromIdx = +fromSel.value; compute(cat); });
+  toSel  .addEventListener('change', () => { state[cat.id].toIdx   = +toSel.value;   compute(cat); });
+
+  buildQuickRef(cat);
+}
+
+function compute(cat) {
+  const st   = state[cat.id];
+  const inputEl = document.getElementById(`input-${cat.id}`);
+  const outEl   = document.getElementById(`output-${cat.id}`);
+  const frmEl   = document.getElementById(`formula-${cat.id}`);
+
+  const v = parseFloat(inputEl.value);
+  if (isNaN(v)) {
+    outEl.textContent = '—'; outEl.className = 'output-value zero';
+    frmEl.textContent = 'Inserisci un valore per visualizzare la formula.';
+    return;
+  }
+
+  const fromUnits = st.dir === 'si2imp' ? cat.si : cat.imp;
+  const toUnits   = st.dir === 'si2imp' ? cat.imp : cat.si;
+  const fromUnit  = fromUnits[st.fromIdx];
+  const toUnit    = toUnits[st.toIdx];
+
+  const { result, text } = cat.formula(v, fromUnit, toUnit, st.dir === 'si2imp');
+
+  const fmt = new Intl.NumberFormat('it-IT', { maximumSignificantDigits: 8 });
+  outEl.textContent = fmt.format(result);
+  outEl.className = 'output-value';
+  frmEl.textContent = text;
+}
+
+function setDir(catId, dir) {
+  const cat = CATEGORIES.find(c => c.id === catId);
+  state[catId].dir = dir;
+  state[catId].fromIdx = 0;
+  state[catId].toIdx = 0;
+  refreshConverter(cat);
+}
+
+function swapDir(catId) {
+  const cat = CATEGORIES.find(c => c.id === catId);
+  const st = state[catId];
+  // Grab current values before rebuild
+  const inputEl = document.getElementById(`input-${catId}`);
+  const oldVal = inputEl ? inputEl.value : '';
+  st.dir = st.dir === 'si2imp' ? 'imp2si' : 'si2imp';
+  st.fromIdx = 0; st.toIdx = 0;
+  refreshConverter(cat, oldVal);
+}
+
+function refreshConverter(cat, preserveInput) {
+  const div = document.getElementById('conv-' + cat.id);
+  div.innerHTML = buildConverter(cat);
+  attachEvents(cat);
+  if (preserveInput !== undefined) {
+    const inputEl = document.getElementById(`input-${cat.id}`);
+    inputEl.value = preserveInput;
+    compute(cat);
+  }
+}
+
+function activateTab(catId) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.cat === catId));
+  document.querySelectorAll('.converter').forEach(c => c.classList.toggle('active', c.id === 'conv-' + catId));
+}
+
+// Quick reference values
+const QR = {
+  length:      [[1,'m','ft'],[100,'m','ft'],[1,'km','mi'],[1,'nm','km'],[1,'in','cm'],[1,'ft','m'],[1,'mi','km']],
+  mass:        [[1,'kg','lb'],[100,'kg','lb'],[1,'lb','kg'],[1,'t','ton'],[1,'oz','g']],
+  force:       [[1,'kN','lbf'],[1,'kN','kip'],[1,'MN','kip'],[1,'kgf','lbf']],
+  pressure:    [[1,'atm','psi'],[1,'bar','psi'],[101.325,'kPa','psi'],[1,'MPa','psi'],[1,'inHg','mbar']],
+  speed:       [[1,'Mach','km/h'],[1,'kt','km/h'],[100,'km/h','mph'],[340,'m/s','kt']],
+  temp:        [[0,'C','F'],[100,'C','F'],[37,'C','F'],[-40,'C','F'],[15,'C','K']],
+  power:       [[1,'kW','hp'],[100,'kW','hp'],[1,'hp','kW'],[1,'MW','hp']],
+  area:        [[1,'m²','ft²'],[1,'ha','ac'],[1,'km²','mi²'],[1,'ft²','m²']],
+};
+
+function buildQuickRef(cat) {
+  const grid = document.getElementById(`qr-${cat.id}`);
+  if (!grid) return;
+  const refs = QR[cat.id] || [];
+
+  refs.forEach(([val, fromId, toId]) => {
+    // Find units
+    const allUnits = [...(cat.si || []), ...(cat.imp || [])];
+    const fromUnit = allUnits.find(u => u.id === fromId);
+    const toUnit   = allUnits.find(u => u.id === toId);
+    if (!fromUnit || !toUnit) return;
+
+    let result;
+    if (cat.id === 'temp') {
+      result = cat.formula(val, fromUnit, toUnit).result;
+    } else {
+      result = val * fromUnit.factor / toUnit.factor;
+    }
+
+    const fmt = new Intl.NumberFormat('it-IT', { maximumSignificantDigits: 5 });
+    const card = document.createElement('div');
+    card.className = 'qr-card';
+    card.innerHTML = `<span class="qr-from">${val} ${fromId}</span><span class="qr-arrow">→</span><span class="qr-to">${fmt.format(result)} ${toId}</span>`;
+    card.onclick = () => {
+      // Set direction and units, fill input
+      const st = state[cat.id];
+      const siIds  = cat.si.map(u=>u.id);
+      const impIds = cat.imp.map(u=>u.id);
+      if (siIds.includes(fromId) && impIds.includes(toId)) {
+        st.dir = 'si2imp';
+      } else if (impIds.includes(fromId) && siIds.includes(toId)) {
+        st.dir = 'imp2si';
+      }
+      const fromUnits = st.dir === 'si2imp' ? cat.si : cat.imp;
+      const toUnits   = st.dir === 'si2imp' ? cat.imp : cat.si;
+      st.fromIdx = fromUnits.findIndex(u=>u.id===fromId);
+      st.toIdx   = toUnits  .findIndex(u=>u.id===toId);
+      if (st.fromIdx < 0) st.fromIdx = 0;
+      if (st.toIdx   < 0) st.toIdx   = 0;
+      refreshConverter(cat, String(val));
+    };
+    grid.appendChild(card);
+  });
+}
+
+buildUI();
+</script>
+</body>
+</html>
